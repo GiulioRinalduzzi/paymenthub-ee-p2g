@@ -34,7 +34,7 @@ spotless {
         target '**/*.md', '**/*.properties', '**/.gitignore', '**/.openapi-generator-ignore', '**/*.yml', '**/*.xml', '**/**.json', '**/*.sql'
         // CONTRIBUTING.md and CODE_OF_CONDUCT.md come from the shared repo scaffold and are
         // maintained there, so this repo's formatter must not rewrite them.
-        targetExclude '**/build/**','**/gsmastub/**', '**/bin/**', '**/.settings/**', '**/.idea/**', '**/.gradle/**', '**/gradlew.bat', '**/licenses/**', '**/banner.txt', '.vscode/**', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md'
+        targetExclude '**/build/**','**/gsmastub/**', '**/bin/**', '**/.settings/**', '**/.idea/**', '**/.gradle/**', '**/gradlew.bat', '**/licenses/**', '**/banner.txt', '.vscode/**', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md', 'contributing.md', 'README.md', 'security.md', 'LICENSE'
         indentWithSpaces(4)
         endWithNewline()
         trimTrailingWhitespace()
