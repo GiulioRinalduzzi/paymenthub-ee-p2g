@@ -139,7 +139,7 @@ configure(this) {
             targetExclude '**/build/**', '**/bin/**', '**/out/**', '**/gsmastub/**'
             importOrder() //sort imports alphabetically
             removeUnusedImports()
-            eclipse().configFile "$rootDir/config/billPay-formatter.xml"
+            eclipse().configFile "$projectDir/config/billPay-formatter.xml"
             endWithNewline()
             trimTrailingWhitespace()
             // Enforce style modifier order
@@ -285,8 +285,6 @@ configure(this) {
 
 
 
-group = 'org.mifos'
-version = '2.0.0.mifos-SNAPSHOT'
 sourceCompatibility = JavaVersion.VERSION_21
 targetCompatibility = JavaVersion.VERSION_21
 
@@ -296,13 +294,28 @@ test {
 
 // Deterministic boot jar name so the Dockerfile can copy exactly one file
 // (avoids the *.jar glob picking up the plain -plain.jar when `build` runs).
+// Each module keeps its own checkstyle config: the two files are not
+// identical, so they cannot be merged into one at the repository root
+// (which is where the plugin looks by default in a multi-module build).
+checkstyle {
+    configDirectory = file("$projectDir/config/checkstyle")
+}
+
 tasks.named('bootJar') {
     archiveFileName = 'app.jar'
+}
+
+// The Gradle project is called 'p2g', but the artifact keeps the full name it
+// had when this was a repository of its own: without this the restructure would
+// silently start publishing org.mifos:p2g and naming the jar p2g-<version>.jar.
+base {
+    archivesName = 'paymenthub-ee-p2g'
 }
 
 publishing {
     publications {
         maven(MavenPublication) {
+            artifactId = 'paymenthub-ee-p2g'
             from(components.java)
         }
     }

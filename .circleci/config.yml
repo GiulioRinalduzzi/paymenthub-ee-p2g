@@ -1,17 +1,25 @@
 version: 2.1
 
-# Master CircleCI config template for PHEE Java components.
-# Distributed to all repos by java_version_config_updater.py.
-# Template variables substituted by the script:
-#   cimg/openjdk:21.0.6  - e.g. cimg/openjdk:21.0
-#   ./gradlew checkstyleMain         - ./gradlew checkstyleMain (present or commented out)
+# CircleCI config for paymenthub-ee-p2g.
+#
+# This repository holds two deployables, so it does NOT use the single-image
+# template the other PHEE Java repos share: that one builds one image from one
+# Dockerfile at the repository root.
+#
+#   p2g  Docker image  the payer side, asks for a bill and pays it
+#                      (former ph-ee-bill-pay)
+#   crm  Docker image  the biller side, answers what is owed and accepts the
+#                      payment (former ph-ee-connector-crm)
+#
+# Each image is built from <module>/Dockerfile with the repository root as the
+# build context, and published as <org>/paymenthub-ee-<module>, so the two keep
+# separate tags on Docker Hub. Same shape as paymenthub-ee-data-pipeline.
 
 executors:
   java-executor:
-    # cimg/openjdk is built on cimg/base which includes Docker CLI.
-    # No separate Docker CLI install step needed.
-    # The executor JDK is only used to compile the JAR — the final Docker
-    # image base is set independently in each repo's Dockerfile.
+    # cimg/openjdk is built on cimg/base, which includes the Docker CLI.
+    # The executor JDK only compiles the jars — the image base is set
+    # independently in each module's Dockerfile.
     docker:
       - image: cimg/openjdk:21.0.6
     environment:
@@ -19,17 +27,27 @@ executors:
       TERM: dumb
 
 commands:
+  # The cache key follows the build scripts: any change to them re-resolves.
+  restore-gradle-cache:
+    steps:
+      - restore_cache:
+          keys:
+            - gradle-v1-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "settings.gradle" }}-{{ checksum "gradle.properties" }}-{{ checksum "p2g/build.gradle" }}-{{ checksum "crm/build.gradle" }}
+            - gradle-v1-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-
+
   common-setup:
     steps:
       - checkout
+      # The jars built once by build_all; see persist_to_workspace there.
+      - attach_workspace:
+          at: .
       - setup_remote_docker:
           version: 20.10.24
       - run:
           name: Set lowercase image name vars
-          # tr used for POSIX compatibility; Bash 4+ alternative: ${VAR,,}
+          # tr for POSIX compatibility; Bash 4+ alternative: ${VAR,,}
           command: |
             echo "export DOCKER_ORG_LOWER=$(echo $CIRCLE_PROJECT_USERNAME | tr '[:upper:]' '[:lower:]')" >> $BASH_ENV
-            echo "export DOCKER_REPO_LOWER=$(echo $CIRCLE_PROJECT_REPONAME | tr '[:upper:]' '[:lower:]')" >> $BASH_ENV
       - run:
           name: Install Docker Buildx
           command: |
@@ -49,90 +67,152 @@ commands:
               || docker buildx use multiarch
             docker buildx inspect --bootstrap
 
-jobs:
-  build_and_push_tag_image:
-    executor: java-executor
+  # One parameterised body instead of two near-identical jobs. MODULE is both the
+  # Gradle project name and the image name suffix. No Gradle here: the jar comes
+  # from build_all through the workspace.
+  build-and-push-module-image:
+    parameters:
+      module:
+        type: string
+      tag:
+        type: string
+      # A second, mutable tag pushed next to `tag`. Branch builds push both
+      # <branch>-<sha>, which is immutable and traceable to one commit, and
+      # <branch>-latest, which is the tag the deployment values files pin.
+      # Empty means one tag only.
+      extra_tag:
+        type: string
+        default: ""
+      # Release tags only: a tag already on Docker Hub must never be silently
+      # overwritten by a re-run of the same tag.
+      skip_if_exists:
+        type: boolean
+        default: false
     steps:
-      - common-setup
-      - run:
-          name: Skip if the release tag is already on Docker Hub
-          # A published release image must never be silently overwritten by a
-          # re-run of the same tag.
-          command: |
-            IMAGE_NAME="$DOCKER_ORG_LOWER/$DOCKER_REPO_LOWER"
-            if curl -s -f -u "$DOCKERHUB_USERNAME":"$DOCKERHUB_PASSWORD" \
-                "https://hub.docker.com/v2/repositories/$IMAGE_NAME/tags/$CIRCLE_TAG" > /dev/null; then
-              echo "Tag $CIRCLE_TAG already exists for $IMAGE_NAME - skipping build and push."
-              circleci-agent step halt
-            else
-              echo "Tag $CIRCLE_TAG does not exist for $IMAGE_NAME - proceeding."
-            fi
-      - run:
-          name: Build application
-          command: ./gradlew bootJar
       - run:
           name: Build and push multi-arch image (linux/amd64 + linux/arm64)
           command: |
+            IMAGE="$DOCKER_ORG_LOWER/paymenthub-ee-<< parameters.module >>"
+            TAG="<< parameters.tag >>"
+            EXTRA_TAG="<< parameters.extra_tag >>"
+
+            if [ "<< parameters.skip_if_exists >>" = "true" ] && curl -s -f \
+                -u "$DOCKERHUB_USERNAME":"$DOCKERHUB_PASSWORD" \
+                "https://hub.docker.com/v2/repositories/$IMAGE/tags/$TAG" > /dev/null; then
+              echo "Tag $TAG already exists for $IMAGE - skipping build and push."
+              exit 0
+            fi
+
+            TAG_ARGS=(-t "$IMAGE:$TAG")
+            if [ -n "$EXTRA_TAG" ]; then
+              TAG_ARGS+=(-t "$IMAGE:$EXTRA_TAG")
+            fi
+
             echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
             docker buildx build \
               --push \
               --platform linux/amd64,linux/arm64 \
-              -t "$DOCKER_ORG_LOWER/$DOCKER_REPO_LOWER:$CIRCLE_TAG" \
+              -f << parameters.module >>/Dockerfile \
+              "${TAG_ARGS[@]}" \
               .
 
-  build_and_push_branch_image:
+jobs:
+  # Builds both modules with all their gates (spotless, checkstyle, Error Prone)
+  # and hands the two jars to the image jobs.
+  build_all:
+    executor: java-executor
+    steps:
+      - checkout
+      - restore-gradle-cache
+      # --refresh-dependencies is what actually re-resolves the org.mifos
+      # SNAPSHOTs (BOM, core). Deleting the cached jars is not enough on its
+      # own: whether a changing module is stale is decided by the module
+      # metadata cache, which is saved with the rest of ~/.gradle/caches, so
+      # without the flag an old SNAPSHOT can be picked again for up to
+      # Gradle's 24h TTL and its jar simply re-downloaded.
+      - run:
+          name: Build every module
+          command: ./gradlew clean build --refresh-dependencies
+      # Keep the SNAPSHOT jars out of the saved cache: they move under us and
+      # everything else in there is released and safe to keep.
+      - run:
+          name: Drop SNAPSHOT artifacts from the cache
+          command: rm -rf ~/.gradle/caches/modules-2/files-2.1/org.mifos
+      - save_cache:
+          key: gradle-v1-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}-{{ checksum "settings.gradle" }}-{{ checksum "gradle.properties" }}-{{ checksum "p2g/build.gradle" }}-{{ checksum "crm/build.gradle" }}
+          paths:
+            - ~/.gradle/caches
+            - ~/.gradle/wrapper
+      - store_test_results:
+          path: p2g/build/test-results/test
+      - store_test_results:
+          path: crm/build/test-results/test
+      # The Dockerfiles only COPY a prebuilt jar, so the image jobs do not need
+      # Gradle at all: they attach these two jars and go straight to buildx.
+      - persist_to_workspace:
+          root: .
+          paths:
+            - p2g/build/libs/app.jar
+            - crm/build/libs/app.jar
+
+  build_and_push_branch_images:
     executor: java-executor
     steps:
       - common-setup
-      - run:
-          name: Build application
-          command: |
-            ./gradlew checkstyleMain
-            ./gradlew clean bootJar
       - run:
           name: Sanitize branch name and set commit tag
           command: |
             echo "export SANITIZED_BRANCH=$(echo $CIRCLE_BRANCH | sed 's/[^a-zA-Z0-9.-]/-/g' | tr '[:upper:]' '[:lower:]')" >> $BASH_ENV
             echo "export SHORT_SHA=$(echo $CIRCLE_SHA1 | cut -c1-7)" >> $BASH_ENV
-      - run:
-          name: Build and push multi-arch image (linux/amd64 + linux/arm64)
-          command: |
-            echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-            # Two tags per build:
-            #   branch-latest  — mutable, always the most recent build on this branch
-            #   branch-SHA     — immutable, traceable to a specific commit
-            docker buildx build \
-              --push \
-              --platform linux/amd64,linux/arm64 \
-              -t "$DOCKER_ORG_LOWER/$DOCKER_REPO_LOWER:${SANITIZED_BRANCH}-latest" \
-              -t "$DOCKER_ORG_LOWER/$DOCKER_REPO_LOWER:${SANITIZED_BRANCH}-${SHORT_SHA}" \
-              .
+      # Two tags per build:
+      #   <branch>-<sha>     immutable, traceable to a specific commit
+      #   <branch>-latest    mutable, always the most recent build on this
+      #                      branch, and what the deployment values files pin
+      - build-and-push-module-image:
+          module: p2g
+          tag: ${SANITIZED_BRANCH}-${SHORT_SHA}
+          extra_tag: ${SANITIZED_BRANCH}-latest
+      - build-and-push-module-image:
+          module: crm
+          tag: ${SANITIZED_BRANCH}-${SHORT_SHA}
+          extra_tag: ${SANITIZED_BRANCH}-latest
 
-  build_and_push_latest_image:
+  build_and_push_latest_images:
     executor: java-executor
     steps:
       - common-setup
-      - run:
-          name: Build application
-          command: |
-            ./gradlew checkstyleMain
-            ./gradlew clean bootJar
-      - run:
-          name: Build and push multi-arch image (linux/amd64 + linux/arm64)
-          command: |
-            echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-            docker buildx build \
-              --push \
-              --platform linux/amd64,linux/arm64 \
-              -t "$DOCKER_ORG_LOWER/$DOCKER_REPO_LOWER:latest" \
-              .
+      - build-and-push-module-image:
+          module: p2g
+          tag: latest
+      - build-and-push-module-image:
+          module: crm
+          tag: latest
+
+  build_and_push_tag_images:
+    executor: java-executor
+    steps:
+      - common-setup
+      - build-and-push-module-image:
+          module: p2g
+          tag: $CIRCLE_TAG
+          skip_if_exists: true
+      - build-and-push-module-image:
+          module: crm
+          tag: $CIRCLE_TAG
+          skip_if_exists: true
 
 workflows:
   version: 2
-  build-and-push-pipeline:
+  build-pipeline:
     jobs:
-      # Build tags matching vX.Y.Z format
-      - build_and_push_tag_image:
+      - build_all:
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d+$/
+      # Release tags
+      - build_and_push_tag_images:
+          requires:
+            - build_all
           filters:
             tags:
               only: /^v\d+\.\d+\.\d+$/
@@ -140,8 +220,10 @@ workflows:
               ignore: /.*/
           context:
             - DOCKER
-      # Build any branch commit (except config-propagator update branches)
-      - build_and_push_branch_image:
+      # Any branch commit (except the config-propagator update branches)
+      - build_and_push_branch_images:
+          requires:
+            - build_all
           filters:
             tags:
               ignore: /.*/
@@ -149,10 +231,10 @@ workflows:
               ignore: /^ci\/mt-.*/
           context:
             - DOCKER
-      # Build 'latest' only on main/master, after branch image succeeds
-      - build_and_push_latest_image:
+      # 'latest' only on main/master, after the branch images succeed
+      - build_and_push_latest_images:
           requires:
-            - build_and_push_branch_image
+            - build_and_push_branch_images
           filters:
             tags:
               ignore: /.*/
