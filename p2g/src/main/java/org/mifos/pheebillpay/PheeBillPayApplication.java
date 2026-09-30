@@ -3,11 +3,13 @@ package org.mifos.pheebillpay;
 import org.mifos.pheebillpay.utils.AbstractApplicationConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.ComponentScan;
 
 @EnableCaching
 @SpringBootApplication
+@ConfigurationPropertiesScan("org.mifos.pheebillpay.properties")
 @ComponentScan("org.mifos.pheebillpay")
 public class PheeBillPayApplication extends AbstractApplicationConfiguration {
 

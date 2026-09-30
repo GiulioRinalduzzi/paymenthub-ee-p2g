@@ -16,9 +16,9 @@ import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.mifos.pheebillpay.data.BillStatusReqDTO;
 import org.mifos.pheebillpay.data.TrasactionDTO;
+import org.mifos.pheebillpay.properties.OperationsProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -34,15 +34,18 @@ public class BillStatusService {
 
     private Logger logger = LoggerFactory.getLogger(BillStatusService.class);
 
-    @Value("${operations.url}")
-    private String baseUrl;
+    private final String baseUrl;
 
-    @Value("${operations.endpoint.transactionReq}")
-    private String transactionReqEndpoint;
+    private final String transactionReqEndpoint;
 
     private ObjectMapper objectMapper = new ObjectMapper();
 
     String transactionId;
+
+    public BillStatusService(OperationsProperties operationsProperties) {
+        this.baseUrl = operationsProperties.url();
+        this.transactionReqEndpoint = operationsProperties.endpoint().transactionReq();
+    }
 
     public TrasactionDTO billStatus(String tenantId, String correlationId, String billerId, String billId, String transferRequestId,
             BillStatusReqDTO body) throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException, JsonProcessingException {

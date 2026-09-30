@@ -51,12 +51,16 @@ import org.mifos.pheebillpay.data.BillRTPReqDTO;
 import org.mifos.pheebillpay.data.BillRTPResponseDTO;
 import org.mifos.pheebillpay.data.PayerRequestDTO;
 import org.mifos.pheebillpay.data.ResponseDTO;
+import org.mifos.pheebillpay.properties.BillPayProperties;
+import org.mifos.pheebillpay.properties.ConnectorProperties;
+import org.mifos.pheebillpay.properties.PayerFspProperties;
+import org.mifos.pheebillpay.properties.StatusProperties;
+import org.mifos.pheebillpay.properties.ZeebeProperties;
 import org.mifos.pheebillpay.utils.Headers;
 import org.mifos.pheebillpay.utils.SpringWrapperUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -85,30 +89,34 @@ public class ZeebeWorkers {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @Value("${zeebe.client.evenly-allocated-max-jobs}")
-    private int workerMaxJobs;
-    @Value("${connector.contactpoint}")
-    private String connectorContactPoint;
-    @Value("${billpay.contactpoint}")
-    private String billPayContactPoint;
-    @Value("${billpay.endpoint.payerRtpResponse}")
-    private String payerRtpResponseEndpoint;
-    @Value("${payer_fsp.tenant}")
-    private String payerFspTenant;
-    @Value("${payer_fsp.mockPayerUnreachable.fspId}")
-    private String mockPayerUnreachableFspId;
-    @Value("${payer_fsp.mockPayerUnreachable.financialAddress}")
-    private String mockPayerUnreachableFinancialAddress;
-    @Value("${payer_fsp.mockDebitFailed.fspId}")
-    private String mockDebitFailedFspId;
-    @Value("${payer_fsp.mockDebitFailed.financialAddress}")
-    private String mockDebitFailedFinancialAddress;
+    private final int workerMaxJobs;
+    private final String connectorContactPoint;
+    private final String billPayContactPoint;
+    private final String payerRtpResponseEndpoint;
+    private final String payerFspTenant;
+    private final String mockPayerUnreachableFspId;
+    private final String mockPayerUnreachableFinancialAddress;
+    private final String mockDebitFailedFspId;
+    private final String mockDebitFailedFinancialAddress;
 
-    @Value("${status.billAcceptedId}")
-    private String billAcceptedId;
+    private final String billAcceptedId;
 
-    @Value("${status.billTimeout}")
-    private int billTimeout;
+    private final int billTimeout;
+
+    public ZeebeWorkers(ZeebeProperties zeebeProperties, ConnectorProperties connectorProperties, BillPayProperties billPayProperties,
+            PayerFspProperties payerFspProperties, StatusProperties statusProperties) {
+        this.workerMaxJobs = zeebeProperties.client().evenlyAllocatedMaxJobs();
+        this.connectorContactPoint = connectorProperties.contactpoint();
+        this.billPayContactPoint = billPayProperties.contactpoint();
+        this.payerRtpResponseEndpoint = billPayProperties.endpoint().payerRtpResponse();
+        this.payerFspTenant = payerFspProperties.tenant();
+        this.mockPayerUnreachableFspId = payerFspProperties.mockPayerUnreachable().fspId();
+        this.mockPayerUnreachableFinancialAddress = payerFspProperties.mockPayerUnreachable().financialAddress();
+        this.mockDebitFailedFspId = payerFspProperties.mockDebitFailed().fspId();
+        this.mockDebitFailedFinancialAddress = payerFspProperties.mockDebitFailed().financialAddress();
+        this.billAcceptedId = statusProperties.billAcceptedId();
+        this.billTimeout = statusProperties.billTimeout();
+    }
 
     private static final ScheduledExecutorService scheduledThreadPoolExecutor = Executors.newScheduledThreadPool(10);
 

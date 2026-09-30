@@ -12,9 +12,9 @@ import static org.mifos.pheebillpay.zeebe.ZeebeVariables.TENANT_ID;
 import java.util.HashMap;
 import java.util.Map;
 import org.mifos.pheebillpay.data.BillPaymentsReqDTO;
+import org.mifos.pheebillpay.properties.BpmnFlowsProperties;
 import org.mifos.pheebillpay.zeebe.ZeebeProcessStarter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -23,10 +23,13 @@ public class BillPaymentsService {
     @Autowired
     private ZeebeProcessStarter zeebeProcessStarter;
 
-    @Value("${bpmn.flows.payment-notification}")
-    String paymentNotificationFlow;
+    private final String paymentNotificationFlow;
 
     String transactionId;
+
+    public BillPaymentsService(BpmnFlowsProperties bpmnFlowsProperties) {
+        this.paymentNotificationFlow = bpmnFlowsProperties.paymentNotification();
+    }
 
     public String billPayments(String tenantId, String correlationId, String callbackUrl, String payerFspId, BillPaymentsReqDTO body) {
         Map<String, Object> extraVariables = new HashMap<>();

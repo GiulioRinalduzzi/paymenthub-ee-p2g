@@ -9,11 +9,12 @@ import static org.mifos.pheebillpay.zeebe.ZeebeVariables.TENANT_ID;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.mifos.pheebillpay.properties.BillPayProperties;
+import org.mifos.pheebillpay.properties.BpmnFlowsProperties;
 import org.mifos.pheebillpay.zeebe.ZeebeProcessStarter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -24,13 +25,16 @@ public class BillInquiryService {
     @Autowired
     private ZeebeProcessStarter zeebeProcessStarter;
 
-    @Value("${bpmn.flows.bill-pay}")
-    String billPayFlow;
+    private final String billPayFlow;
 
-    @Value("${billPay.FspNotOnboarded}")
-    private String fspNotOnboarded;
+    private final String fspNotOnboarded;
 
     String transactionId;
+
+    public BillInquiryService(BpmnFlowsProperties bpmnFlowsProperties, BillPayProperties billPayProperties) {
+        this.billPayFlow = bpmnFlowsProperties.billPay();
+        this.fspNotOnboarded = billPayProperties.fspNotOnboarded();
+    }
 
     public String billInquiry(String tenantId, String correlationId, String callbackUrl, String payerFspId, String billId, String field) {
         Map<String, Object> extraVariables = new HashMap<>();

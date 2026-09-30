@@ -6,13 +6,13 @@ import java.util.HashMap;
 import java.util.Map;
 import org.mifos.connector.common.channel.dto.PhErrorDTO;
 import org.mifos.pheebillpay.data.BillRTPReqDTO;
+import org.mifos.pheebillpay.properties.BpmnFlowsProperties;
 import org.mifos.pheebillpay.validators.BillPayValidator;
 import org.mifos.pheebillpay.zeebe.ZeebeProcessStarter;
 import org.mifos.pheebillpay.zeebe.ZeebeVariables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,11 +26,14 @@ public class BillRTPReqService {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @Value("${bpmn.flows.bill-request}")
-    String billPayFlow;
+    private final String billPayFlow;
 
     String transactionId;
     private static final Logger logger = LoggerFactory.getLogger(BillRTPReqService.class);
+
+    public BillRTPReqService(BpmnFlowsProperties bpmnFlowsProperties) {
+        this.billPayFlow = bpmnFlowsProperties.billRequest();
+    }
 
     public PhErrorDTO billRtpReq(String tenantId, String correlationId, String callBackUrl, String billerId, BillRTPReqDTO body) {
         PhErrorDTO phErrorDTO = billPayValidator.validateBillRTPRequest(body);

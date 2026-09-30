@@ -16,6 +16,7 @@ import org.apache.camel.Exchange;
 import org.apache.camel.ProducerTemplate;
 import org.json.JSONObject;
 import org.mifos.connector.crm.data.BillPaymentsReqDTO;
+import org.mifos.connector.crm.properties.StatusProperties;
 import org.mifos.connector.crm.utils.Headers;
 import org.mifos.connector.crm.utils.SpringWrapperUtil;
 import org.slf4j.Logger;
@@ -44,11 +45,14 @@ public class ZeebeWorkers {
     @Value("${zeebe.client.evenly-allocated-max-jobs}")
     private int workerMaxJobs;
 
-    @Value("${status.billReqAcceptedId}")
-    private String billReqAcceptedId;
+    private final String billReqAcceptedId;
 
-    @Value("${status.billTimeout}")
-    private int billTimeout;
+    private final int billTimeout;
+
+    public ZeebeWorkers(StatusProperties statusProperties) {
+        this.billReqAcceptedId = statusProperties.billReqAcceptedId();
+        this.billTimeout = statusProperties.billTimeout();
+    }
 
     private static final ScheduledExecutorService scheduledThreadPoolExecutor = Executors.newScheduledThreadPool(10);
 

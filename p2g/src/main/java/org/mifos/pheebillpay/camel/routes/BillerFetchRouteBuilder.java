@@ -3,13 +3,13 @@ package org.mifos.pheebillpay.camel.routes;
 import org.mifos.connector.common.camel.ErrorHandlerRouteBuilder;
 import org.mifos.pheebillpay.data.Bill;
 import org.mifos.pheebillpay.data.BillInquiryResponseDTO;
+import org.mifos.pheebillpay.properties.BillPayProperties;
 import org.mifos.pheebillpay.properties.BillerDetails;
 import org.mifos.pheebillpay.properties.BillerDetailsProperties;
 import org.mifos.pheebillpay.zeebe.ZeebeVariables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -23,13 +23,16 @@ public class BillerFetchRouteBuilder extends ErrorHandlerRouteBuilder {
     @Autowired
     private Bill billDetails;
 
-    @Value("${billPay.billIdEmpty}")
-    private String billIdEmpty;
-    @Value("${billPay.billIdEmptyOriginal}")
-    private String billIdEmptyOriginal;
+    private final String billIdEmpty;
+    private final String billIdEmptyOriginal;
 
     @Autowired
     private BillerDetailsProperties billerDetailsProperties;
+
+    public BillerFetchRouteBuilder(BillPayProperties billPayProperties) {
+        this.billIdEmpty = billPayProperties.billIdEmpty();
+        this.billIdEmptyOriginal = billPayProperties.billIdEmptyOriginal();
+    }
 
     @Override
     public void configure() {
