@@ -38,12 +38,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.ProducerTemplate;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
-import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
-import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.json.JSONObject;
 import org.mifos.pheebillpay.data.BillDetails;
 import org.mifos.pheebillpay.data.BillPaymentsReqDTO;
@@ -66,7 +60,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -103,8 +96,11 @@ public class ZeebeWorkers {
 
     private final int billTimeout;
 
+    private final RestTemplate restTemplate;
+
     public ZeebeWorkers(ZeebeProperties zeebeProperties, ConnectorProperties connectorProperties, BillPayProperties billPayProperties,
-            PayerFspProperties payerFspProperties, StatusProperties statusProperties) {
+            PayerFspProperties payerFspProperties, StatusProperties statusProperties, RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
         this.workerMaxJobs = zeebeProperties.client().evenlyAllocatedMaxJobs();
         this.connectorContactPoint = connectorProperties.contactpoint();
         this.billPayContactPoint = billPayProperties.contactpoint();
@@ -250,18 +246,6 @@ public class ZeebeWorkers {
 
             HttpEntity<String> requestEntity = new HttpEntity<>(jsonPayload, headers);
 
-            RestTemplate restTemplate = new RestTemplate();
-
-            CloseableHttpClient httpClient = HttpClients.custom()
-                    // HttpClient 5: TLS config moved onto the connection manager
-                    .setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
-                            .setSSLSocketFactory(new SSLConnectionSocketFactory(
-                                    new SSLContextBuilder().loadTrustMaterial(null, (certificate, authType) -> true).build(),
-                                    NoopHostnameVerifier.INSTANCE))
-                            .build())
-                    .build();
-            restTemplate.setRequestFactory(new HttpComponentsClientHttpRequestFactory(httpClient));
-
             ResponseEntity<ResponseDTO> responseEntity = null;
 
             try {
@@ -309,18 +293,6 @@ public class ZeebeWorkers {
 
             HttpEntity<BillRTPResponseDTO> requestEntity = new HttpEntity<>(billRTPResponseDTO, headers);
 
-            RestTemplate restTemplate = new RestTemplate();
-
-            CloseableHttpClient httpClient = HttpClients.custom()
-                    // HttpClient 5: TLS config moved onto the connection manager
-                    .setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
-                            .setSSLSocketFactory(new SSLConnectionSocketFactory(
-                                    new SSLContextBuilder().loadTrustMaterial(null, (certificate, authType) -> true).build(),
-                                    NoopHostnameVerifier.INSTANCE))
-                            .build())
-                    .build();
-            restTemplate.setRequestFactory(new HttpComponentsClientHttpRequestFactory(httpClient));
-
             ResponseEntity<ResponseDTO> responseEntity = null;
 
             try {
@@ -336,16 +308,6 @@ public class ZeebeWorkers {
             Map<String, Object> variables = job.getVariablesAsMap();
             String correlationId = variables.get(CLIENTCORRELATIONID).toString();
 
-            RestTemplate restTemplate = new RestTemplate();
-            CloseableHttpClient httpClient = HttpClients.custom()
-                    // HttpClient 5: TLS config moved onto the connection manager
-                    .setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
-                            .setSSLSocketFactory(new SSLConnectionSocketFactory(
-                                    new SSLContextBuilder().loadTrustMaterial(null, (certificate, authType) -> true).build(),
-                                    NoopHostnameVerifier.INSTANCE))
-                            .build())
-                    .build();
-            restTemplate.setRequestFactory(new HttpComponentsClientHttpRequestFactory(httpClient));
             String callbackUrl = variables.get(CALLBACK_URL).toString();
             HttpHeaders headers = new HttpHeaders();
             headers.add("X-Client-Correlation-ID", correlationId);
