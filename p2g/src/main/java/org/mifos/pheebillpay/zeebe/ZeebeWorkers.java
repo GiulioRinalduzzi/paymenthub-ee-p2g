@@ -168,7 +168,7 @@ public class ZeebeWorkers {
             variables.put(BILL_PAY_RESPONSE, exchange.getIn().getBody(String.class));
             variables.put(BILL_PAY_FAILED, exchange.getProperty(BILL_PAY_FAILED));
             logger.info("Zeebe variable {}", job.getVariablesAsMap());
-            client.newCompleteCommand(job.getKey()).variables(variables).send();
+            client.newCompleteCommand(job.getKey()).variables(variables).send().join();
         }).name("billFetchResponse").maxJobsActive(workerMaxJobs).open();
 
         // setting response to callback url for payment status
@@ -194,7 +194,7 @@ public class ZeebeWorkers {
             producerTemplate.send("direct:paymentNotification-response", exchange);
             variables.put(BILL_PAY_RESPONSE, exchange.getProperty(BILL_PAY_RESPONSE));
             variables.put("state", "SUCCESS");
-            zeebeClient.newCompleteCommand(job.getKey()).variables(variables).send();
+            zeebeClient.newCompleteCommand(job.getKey()).variables(variables).send().join();
             logger.info("Zeebe variable {}", job.getVariablesAsMap());
         }).name("billPayResponse").maxJobsActive(workerMaxJobs).open();
 
@@ -258,7 +258,7 @@ public class ZeebeWorkers {
             } else {
                 variables.put(PAYER_RTP_REQ, false);
             }
-            client.newCompleteCommand(job.getKey()).variables(variables).send();
+            client.newCompleteCommand(job.getKey()).variables(variables).send().join();
         }).name("payerRtpRequest").maxJobsActive(workerMaxJobs).open();
 
         zeebeClient.newWorker().jobType("billerRtpResponse").handler((client, job) -> {
@@ -299,7 +299,7 @@ public class ZeebeWorkers {
             } catch (HttpClientErrorException | HttpServerErrorException e) {
                 logger.error(e.getMessage());
             }
-            client.newCompleteCommand(job.getKey()).variables(variables).send();
+            client.newCompleteCommand(job.getKey()).variables(variables).send().join();
         }).name("billerRtpResponse").maxJobsActive(workerMaxJobs).open();
 
         zeebeClient.newWorker().jobType("sendError").handler((client, job) -> {
@@ -330,7 +330,7 @@ public class ZeebeWorkers {
                 logger.error(e.getMessage());
             }
 
-            client.newCompleteCommand(job.getKey()).variables(variables).send();
+            client.newCompleteCommand(job.getKey()).variables(variables).send().join();
         }).name("sendError").maxJobsActive(workerMaxJobs).open();
 
     }

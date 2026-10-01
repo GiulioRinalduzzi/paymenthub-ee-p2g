@@ -75,7 +75,7 @@ public class ZeebeWorkers {
             variables.put(BILL_INQUIRY_RESPONSE, exchange.getProperty(BILL_INQUIRY_RESPONSE));
             variables.put(BILL_FETCH_FAILED, exchange.getProperty(BILL_FETCH_FAILED));
             variables.put(AMOUNT, exchange.getProperty(AMOUNT));
-            zeebeClient.newCompleteCommand(job.getKey()).variables(variables).send();
+            zeebeClient.newCompleteCommand(job.getKey()).variables(variables).send().join();
             logger.debug("Zeebe variable {}", job.getVariablesAsMap());
         }).name("fetch-bill").maxJobsActive(workerMaxJobs).open();
 
@@ -101,7 +101,7 @@ public class ZeebeWorkers {
             variables.put("reason", exchange.getProperty("reason"));
             variables.put("state", "ACCEPTED");
             variables.put(BILL_PAY_FAILED, exchange.getProperty(BILL_PAY_FAILED));
-            zeebeClient.newCompleteCommand(job.getKey()).variables(variables).send();
+            zeebeClient.newCompleteCommand(job.getKey()).variables(variables).send().join();
             logger.debug("Zeebe variable {}", job.getVariablesAsMap());
         }).name("billPay").maxJobsActive(workerMaxJobs).open();
 
@@ -114,7 +114,7 @@ public class ZeebeWorkers {
             Exchange exchange = SpringWrapperUtil.getDefaultWrappedExchange(producerTemplate.getCamelContext(), headers, null);
             // check before implementing
             producerTemplate.send("direct:send-ack", exchange);
-            zeebeClient.newCompleteCommand(job.getKey()).variables(variables).send();
+            zeebeClient.newCompleteCommand(job.getKey()).variables(variables).send().join();
             logger.debug("Zeebe variable {}", job.getVariablesAsMap());
         }).name("billRtpAck").maxJobsActive(workerMaxJobs).open();
 
@@ -128,7 +128,7 @@ public class ZeebeWorkers {
             Exchange exchange = SpringWrapperUtil.getDefaultWrappedExchange(producerTemplate.getCamelContext(), headers, null);
             producerTemplate.send("direct:bill-rtp-resp", exchange);
             variables.put("billRTPResponse", exchange.getIn().getBody(String.class));
-            zeebeClient.newCompleteCommand(job.getKey()).variables(variables).send();
+            zeebeClient.newCompleteCommand(job.getKey()).variables(variables).send().join();
             logger.debug("Zeebe variable {}", job.getVariablesAsMap());
         }).name("billRTPResp").maxJobsActive(workerMaxJobs).open();
 
