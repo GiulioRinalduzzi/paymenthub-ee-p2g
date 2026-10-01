@@ -18,6 +18,12 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 public class HeaderValidationInterceptor implements HandlerInterceptor {
 
+    private final ObjectMapper objectMapper;
+
+    public HeaderValidationInterceptor(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
     @Autowired
     private ApplicationContext applicationContext;
 
@@ -60,7 +66,6 @@ public class HeaderValidationInterceptor implements HandlerInterceptor {
     }
 
     private void handleValidationFailure(HttpServletResponse response, Object methodResponse) throws Exception {
-        ObjectMapper objectMapper = new ObjectMapper();
         String jsonResponse = objectMapper.writeValueAsString(methodResponse);
         response.setHeader("Content-Type", "application/json");
         response.setStatus(HttpStatus.BAD_REQUEST.value());

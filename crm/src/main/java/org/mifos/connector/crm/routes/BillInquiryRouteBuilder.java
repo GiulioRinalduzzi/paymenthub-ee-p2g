@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class BillInquiryRouteBuilder extends ErrorHandlerRouteBuilder {
 
+    private final ObjectMapper objectMapper;
+
     private final String billIdInvalidId;
 
     private final String billIdEmptyId;
@@ -29,7 +31,8 @@ public class BillInquiryRouteBuilder extends ErrorHandlerRouteBuilder {
     @Autowired
     private Bill billDetails;
 
-    public BillInquiryRouteBuilder(BillPayProperties billPayProperties) {
+    public BillInquiryRouteBuilder(BillPayProperties billPayProperties, ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
         this.billIdInvalidId = billPayProperties.billIdInvalidId();
         this.billIdEmptyId = billPayProperties.billIdEmptyId();
     }
@@ -61,7 +64,6 @@ public class BillInquiryRouteBuilder extends ErrorHandlerRouteBuilder {
                     }
                     exchange.setProperty(BILL_INQUIRY_RESPONSE, billInquiryResponseDTO);
                     exchange.setProperty(AMOUNT, billInquiryResponseDTO.getBillDetails().getAmountonDueDate());
-                    ObjectMapper objectMapper = new ObjectMapper();
                     String jsonString = objectMapper.writeValueAsString(billInquiryResponseDTO);
                     exchange.getIn().setBody(jsonString);
                     logger.debug("Bill Inquiry Response: {}", jsonString);

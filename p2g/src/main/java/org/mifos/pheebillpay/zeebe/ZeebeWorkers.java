@@ -233,7 +233,6 @@ public class ZeebeWorkers {
             payerRequestDTO.setTransactionId(variables.get(TRANSACTION_ID).toString());
             payerRequestDTO.setBillDetails(new BillDetails(billRTPReqDTO.getBillID(), billRTPReqDTO.getBillDetails().getBillerName(),
                     billRTPReqDTO.getBillDetails().getAmount()));
-            ObjectMapper objectMapper = new ObjectMapper();
             String jsonPayload = objectMapper.writeValueAsString(payerRequestDTO);
 
             HttpHeaders headers = new HttpHeaders();
@@ -316,7 +315,6 @@ public class ZeebeWorkers {
             headers.setContentType(MediaType.APPLICATION_JSON);
             Map<String, Object> errorInfo = new HashMap<>();
             errorInfo.put("errorMessage", variables.get("errorInformation").toString());
-            ObjectMapper objectMapper = new ObjectMapper();
             String jsonBody = null;
             try {
                 jsonBody = objectMapper.writeValueAsString(errorInfo);

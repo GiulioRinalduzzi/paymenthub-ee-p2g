@@ -20,13 +20,16 @@ public class BillPayRouteBuilder extends ErrorHandlerRouteBuilder {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
+    private final ObjectMapper objectMapper;
+
     private final String billAlreadyPaidId;
 
     private final String billPayTimeoutId;
     @Autowired
     BillPaymentsResponseDTO billPaymentsResponseDTO;
 
-    public BillPayRouteBuilder(BillPayProperties billPayProperties) {
+    public BillPayRouteBuilder(BillPayProperties billPayProperties, ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
         this.billAlreadyPaidId = billPayProperties.billAlreadyPaidId();
         this.billPayTimeoutId = billPayProperties.billPayTimeoutId();
     }
@@ -52,7 +55,6 @@ public class BillPayRouteBuilder extends ErrorHandlerRouteBuilder {
                     exchange.setProperty("reason", billPaymentsResponseDTO.getReason());
                     exchange.setProperty("code", billPaymentsResponseDTO.getCode());
                     exchange.setProperty("status", billPaymentsResponseDTO.getStatus());
-                    ObjectMapper objectMapper = new ObjectMapper();
                     String jsonString = objectMapper.writeValueAsString(response);
                     exchange.getIn().setBody(jsonString);
                     logger.debug("Bill Payments Response: {}", response);

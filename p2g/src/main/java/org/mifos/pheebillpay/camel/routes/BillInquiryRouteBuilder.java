@@ -17,6 +17,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class BillInquiryRouteBuilder extends ErrorHandlerRouteBuilder {
 
+    private final ObjectMapper objectMapper;
+
+    public BillInquiryRouteBuilder(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
@@ -32,14 +38,12 @@ public class BillInquiryRouteBuilder extends ErrorHandlerRouteBuilder {
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(200)).process(exchange -> {
                     if (exchange.getProperty(ZeebeVariables.BILL_INQUIRY_RESPONSE) != null) {
                         Object obj = exchange.getProperty(ZeebeVariables.BILL_INQUIRY_RESPONSE);
-                        ObjectMapper objectMapper = new ObjectMapper();
                         String jsonString = objectMapper.writeValueAsString(obj);
                         exchange.getIn().setBody(jsonString);
                         logger.debug("Bill Inquiry Response: {} ", jsonString);
                     } else {
                         exchange.getIn().setHeader(Exchange.HTTP_RESPONSE_CODE, constant(400));
                         responseDTO = setFailureMessage(exchange);
-                        ObjectMapper objectMapper = new ObjectMapper();
                         String jsonString = objectMapper.writeValueAsString(responseDTO);
                         exchange.getIn().setBody(jsonString);
                         logger.debug("Bill Inquiry Failure Response: {}", jsonString);

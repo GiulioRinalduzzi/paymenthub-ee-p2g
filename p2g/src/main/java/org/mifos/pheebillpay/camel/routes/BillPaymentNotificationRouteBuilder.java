@@ -13,6 +13,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class BillPaymentNotificationRouteBuilder extends ErrorHandlerRouteBuilder {
 
+    private final ObjectMapper objectMapper;
+
+    public BillPaymentNotificationRouteBuilder(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
@@ -29,7 +35,6 @@ public class BillPaymentNotificationRouteBuilder extends ErrorHandlerRouteBuilde
                             exchange.getIn().getHeader(ZeebeVariables.CLIENTCORRELATIONID));
                     exchange.getIn().setHeader(ZeebeVariables.PAYER_FSP, exchange.getIn().getHeader(ZeebeVariables.PAYER_FSP));
                     exchange.getIn().setHeader(ZeebeVariables.CALLBACK_URL, exchange.getProperty(ZeebeVariables.CALLBACK_URL));
-                    ObjectMapper objectMapper = new ObjectMapper();
                     String jsonString = objectMapper.writeValueAsString(responseDTO);
                     exchange.getIn().setBody(jsonString);
                 }).log("Payment Notification Body: ${body}").log("Payment Notification Headers: ${headers}")
