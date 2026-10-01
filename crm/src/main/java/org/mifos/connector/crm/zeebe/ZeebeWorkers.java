@@ -8,8 +8,6 @@ import io.camunda.zeebe.client.ZeebeClient;
 import io.camunda.zeebe.client.api.response.ActivatedJob;
 import jakarta.annotation.PostConstruct;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
@@ -53,8 +51,6 @@ public class ZeebeWorkers {
         this.billReqAcceptedId = statusProperties.billReqAcceptedId();
         this.billTimeout = statusProperties.billTimeout();
     }
-
-    private static final ScheduledExecutorService scheduledThreadPoolExecutor = Executors.newScheduledThreadPool(10);
 
     @PostConstruct
     public void setupWorkers() {
@@ -137,9 +133,10 @@ public class ZeebeWorkers {
     private void pauseExec() {
         try {
             logger.info("Pausing execution for capturing intermediary status ");
-            scheduledThreadPoolExecutor.schedule(() -> {}, billTimeout, TimeUnit.SECONDS).get();
-        } catch (Exception e) {
-            throw new RuntimeException();
+            TimeUnit.SECONDS.sleep(billTimeout);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
         logger.info("Resuming execution post pause");
     }

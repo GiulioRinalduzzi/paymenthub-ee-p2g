@@ -32,8 +32,6 @@ import jakarta.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
@@ -113,8 +111,6 @@ public class ZeebeWorkers {
         this.billAcceptedId = statusProperties.billAcceptedId();
         this.billTimeout = statusProperties.billTimeout();
     }
-
-    private static final ScheduledExecutorService scheduledThreadPoolExecutor = Executors.newScheduledThreadPool(10);
 
     @PostConstruct
     public void setupWorkers() {
@@ -359,8 +355,9 @@ public class ZeebeWorkers {
     private void pauseExec() {
         try {
             logger.debug("Pausing execution for capturing intermediary status ");
-            scheduledThreadPoolExecutor.schedule(() -> {}, billTimeout, TimeUnit.SECONDS).get();
-        } catch (Exception exception) {
+            TimeUnit.SECONDS.sleep(billTimeout);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(exception);
         }
         logger.debug("Resuming execution post pause");
