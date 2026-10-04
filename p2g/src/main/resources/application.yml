@@ -74,12 +74,12 @@ billers:
       billerCategory: "BillerCategory8"
 
 connector:
-  contactpoint: "http://ph-ee-connector:8080"
+  contactpoint: "http://paymenthub-ee-connector-bulk:80"
   endpoint:
     payerRtp: "/billTransferRequests"
 
 billpay:
-  contactpoint: "http://ph-ee-bill-pay:8080"
+  contactpoint: "http://paymenthub-ee-p2g:8080"
   endpoint:
     payerRtpResponse: "/billTransferRequests"
 
@@ -111,7 +111,7 @@ management:
         enabled: true
 
 operations:
-  url: "http://ph-ee-operations-app/api/v1"
+  url: "http://paymenthub-ee-bff:80/api/v1"
   auth-enabled: false
   endpoint:
     transfers: "/transfers?page=0&size=1&"
